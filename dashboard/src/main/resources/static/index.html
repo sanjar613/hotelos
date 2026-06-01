@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HotelOS — Operations Command Center</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg-0:#0a0a0c; --bg-1:#111114; --bg-2:#17171c; --bg-3:#1f1f26;
+  --line:#2a2a33; --line-bright:#3a3a45;
+  --txt-0:#f4f1ea; --txt-1:#a8a49b; --txt-2:#6b6860;
+  --amber:#f5a623; --amber-dim:#3d2f12;
+  --cyan:#39d8c8; --cyan-dim:#0e2f2b;
+  --green:#5fd068; --green-dim:#13301a;
+  --orange:#ff7849; --orange-dim:#3a1d12;
+  --red:#ff4d5e; --red-dim:#3a1218;
+  --violet:#9d8cff; --violet-dim:#221d3a;
+  --radius:4px; --shadow:0 12px 40px rgba(0,0,0,.55);
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; }
+body {
+  font-family:'JetBrains Mono', monospace; background:var(--bg-0); color:var(--txt-0);
+  font-size:13px; line-height:1.5; overflow-x:hidden;
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(245,166,35,.04), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgba(57,216,200,.04), transparent 40%);
+  background-attachment:fixed;
+}
+body::after {
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:9999;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay;
+}
+::-webkit-scrollbar { width:9px; height:9px; }
+::-webkit-scrollbar-track { background:var(--bg-1); }
+::-webkit-scrollbar-thumb { background:var(--line-bright); border-radius:2px; }
+::-webkit-scrollbar-thumb:hover { background:var(--amber); }
+
+#login {
+  position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(circle at 50% 40%, rgba(245,166,35,.07), transparent 55%), var(--bg-0);
+}
+.login-card {
+  width:380px; background:var(--bg-1); border:1px solid var(--line); border-radius:var(--radius);
+  padding:38px 34px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+  animation:cardIn .6s cubic-bezier(.16,1,.3,1);
+}
+.login-card::before {
+  content:""; position:absolute; top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, var(--amber), transparent);
+  animation:sweep 3s ease-in-out infinite;
+}
+@keyframes sweep { 0%,100%{opacity:.3;transform:translateX(-30%)} 50%{opacity:1;transform:translateX(30%)} }
+@keyframes cardIn { from{opacity:0;transform:translateY(20px) scale(.98)} to{opacity:1;transform:none} }
+.brand-mark { display:flex; align-items:center; gap:11px; margin-bottom:6px; }
+.brand-mark .dot { width:11px; height:11px; border-radius:50%; background:var(--amber); box-shadow:0 0 14px var(--amber); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.brand-name { font-family:'Fraunces', serif; font-weight:900; font-size:25px; letter-spacing:-.5px; }
+.brand-name span { color:var(--amber); }
+.login-sub { color:var(--txt-2); font-size:11px; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:28px; }
+.field { margin-bottom:15px; }
+.field label { display:block; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--txt-1); margin-bottom:7px; }
+.field input {
+  width:100%; padding:12px 14px; background:var(--bg-0); border:1px solid var(--line);
+  border-radius:var(--radius); color:var(--txt-0); font-family:inherit; font-size:13px; transition:border-color .2s, box-shadow .2s;
+}
+.field input:focus { outline:none; border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); }
+.btn {
+  width:100%; padding:13px; border:none; border-radius:var(--radius); background:var(--amber); color:#1a1206;
+  font-family:inherit; font-weight:800; font-size:12px; letter-spacing:1.5px; text-transform:uppercase;
+  cursor:pointer; transition:transform .12s, box-shadow .2s; margin-top:8px;
+}
+.btn:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(245,166,35,.3); }
+.btn:active { transform:translateY(0); }
+.btn:disabled { opacity:.5; cursor:wait; transform:none; }
+.login-err { color:var(--red); font-size:11px; margin-top:14px; min-height:16px; }
+.login-hint { margin-top:24px; padding-top:18px; border-top:1px solid var(--line); font-size:10.5px; color:var(--txt-2); line-height:1.7; }
+.login-hint code { color:var(--amber); background:var(--amber-dim); padding:1px 6px; border-radius:3px; }
+
+#app { display:none; min-height:100vh; flex-direction:column; }
+header {
+  display:flex; align-items:center; justify-content:space-between; padding:14px 22px;
+  border-bottom:1px solid var(--line); background:linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  position:sticky; top:0; z-index:50;
+}
+.hdr-left { display:flex; align-items:center; gap:14px; }
+.hdr-left .brand-name { font-size:18px; }
+.hdr-clock { font-size:12px; color:var(--txt-1); letter-spacing:.5px; padding-left:14px; margin-left:4px; border-left:1px solid var(--line); }
+.hdr-right { display:flex; align-items:center; gap:16px; }
+.ws-pill { display:flex; align-items:center; gap:8px; padding:6px 13px; border-radius:20px; font-size:10px; letter-spacing:1px; text-transform:uppercase; font-weight:700; border:1px solid var(--line); }
+.ws-pill .led { width:8px; height:8px; border-radius:50%; }
+.ws-on { background:var(--green-dim); color:var(--green); border-color:var(--green); }
+.ws-on .led { background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.6s infinite; }
+.ws-off { background:var(--red-dim); color:var(--red); border-color:var(--red); }
+.ws-off .led { background:var(--red); }
+.user-chip { font-size:11px; color:var(--txt-1); }
+.user-chip b { color:var(--amber); }
+.logout-btn { background:transparent; border:1px solid var(--line); color:var(--txt-1); padding:6px 12px; border-radius:var(--radius); font-family:inherit; font-size:10px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all .15s; }
+.logout-btn:hover { border-color:var(--red); color:var(--red); }
+
+.kpi-strip { display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line); border-bottom:1px solid var(--line); }
+.kpi { background:var(--bg-1); padding:16px 20px; position:relative; transition:background .2s; }
+.kpi:hover { background:var(--bg-2); }
+.kpi .k-label { font-size:9.5px; letter-spacing:1.5px; text-transform:uppercase; color:var(--txt-2); }
+.kpi .k-value { font-family:'Fraunces', serif; font-weight:900; font-size:30px; line-height:1.1; margin-top:6px; transition:color .3s; }
+.kpi .k-value.flash { animation:flashVal .6s; }
+@keyframes flashVal { 0%{color:var(--amber)} 100%{color:var(--txt-0)} }
+.kpi .k-sub { font-size:10px; color:var(--txt-2); margin-top:2px; }
+.kpi::before { content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:2px; }
+.kpi.k-occ::before { background:var(--violet); }
+.kpi.k-dirty::before { background:var(--orange); }
+.kpi.k-orders::before { background:var(--cyan); }
+.kpi.k-maint::before { background:var(--red); }
+.kpi.k-rev::before { background:var(--amber); }
+
+main {
+  flex:1; display:grid; gap:18px; padding:18px 22px; grid-template-columns:1.6fr 1fr;
+  grid-template-areas:"rooms actions" "orders actions" "maint charts" "log charts";
+  max-width:1680px; margin:0 auto; width:100%;
+}
+@media (max-width:1100px){ main { grid-template-columns:1fr; grid-template-areas:"rooms" "actions" "orders" "maint" "charts" "log"; } }
+
+.panel { background:var(--bg-1); border:1px solid var(--line); border-radius:var(--radius); display:flex; flex-direction:column; overflow:hidden; animation:panelIn .5s backwards; }
+.panel:nth-child(1){animation-delay:.05s} .panel:nth-child(2){animation-delay:.1s}
+.panel:nth-child(3){animation-delay:.15s} .panel:nth-child(4){animation-delay:.2s}
+.panel:nth-child(5){animation-delay:.25s} .panel:nth-child(6){animation-delay:.3s}
+@keyframes panelIn { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+.p-rooms{grid-area:rooms} .p-actions{grid-area:actions} .p-orders{grid-area:orders}
+.p-maint{grid-area:maint} .p-charts{grid-area:charts} .p-log{grid-area:log}
+.p-head { display:flex; align-items:center; justify-content:space-between; padding:13px 17px; border-bottom:1px solid var(--line); background:var(--bg-2); }
+.p-title { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--txt-1); font-weight:700; display:flex; align-items:center; gap:9px; }
+.p-title .tdot { width:7px; height:7px; border-radius:50%; }
+.p-count { font-size:10px; color:var(--txt-2); background:var(--bg-3); padding:3px 9px; border-radius:10px; }
+.p-body { padding:15px 17px; overflow-y:auto; flex:1; }
+
+.rooms-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; }
+.room { aspect-ratio:1; border-radius:var(--radius); border:1px solid var(--line); padding:9px; display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; transition:transform .15s, box-shadow .2s; }
+.room:hover { transform:translateY(-2px); box-shadow:var(--shadow); z-index:2; }
+.room .r-num { font-family:'Fraunces',serif; font-weight:900; font-size:19px; }
+.room .r-type { font-size:8px; letter-spacing:1px; text-transform:uppercase; opacity:.7; }
+.room .r-state { font-size:8.5px; letter-spacing:.5px; text-transform:uppercase; font-weight:700; }
+.room .r-guest { font-size:8.5px; opacity:.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.room.flash-update { animation:roomFlash .8s; }
+@keyframes roomFlash { 0%{box-shadow:0 0 0 2px var(--amber)} 100%{box-shadow:0 0 0 0 transparent} }
+.st-CLEAN{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.st-DIRTY{background:var(--orange-dim);border-color:var(--orange);color:var(--orange);}
+.st-BEING_CLEANED{background:var(--amber-dim);border-color:var(--amber);color:var(--amber);}
+.st-OCCUPIED{background:var(--violet-dim);border-color:var(--violet);color:var(--violet);}
+.st-MAINTENANCE{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+
+.row { padding:11px 13px; border:1px solid var(--line); border-radius:var(--radius); margin-bottom:9px; background:var(--bg-2); transition:border-color .2s; animation:rowIn .35s backwards; }
+@keyframes rowIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:none} }
+.row:hover { border-color:var(--line-bright); }
+.row-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:5px; }
+.row-room { font-weight:700; font-size:13px; }
+.row-meta { font-size:10.5px; color:var(--txt-2); }
+.row-detail { font-size:11px; color:var(--txt-1); line-height:1.5; }
+.tag { font-size:9px; letter-spacing:.8px; text-transform:uppercase; font-weight:700; padding:3px 8px; border-radius:3px; white-space:nowrap; }
+.tg-RECEIVED{background:var(--violet-dim);color:var(--violet);}
+.tg-PREPARING{background:var(--amber-dim);color:var(--amber);}
+.tg-OUT_FOR_DELIVERY{background:var(--cyan-dim);color:var(--cyan);}
+.tg-DELIVERED{background:var(--green-dim);color:var(--green);}
+.tg-CRITICAL{background:var(--red-dim);color:var(--red);}
+.tg-HIGH{background:var(--orange-dim);color:var(--orange);}
+.tg-NORMAL{background:var(--cyan-dim);color:var(--cyan);}
+.tg-LOW{background:var(--bg-3);color:var(--txt-1);}
+.tg-OPEN{background:var(--red-dim);color:var(--red);}
+.tg-ASSIGNED{background:var(--amber-dim);color:var(--amber);}
+.tg-IN_PROGRESS{background:var(--cyan-dim);color:var(--cyan);}
+.tg-RESOLVED{background:var(--green-dim);color:var(--green);}
+.mini-btn { background:var(--bg-3); border:1px solid var(--line); color:var(--txt-1); padding:4px 10px; border-radius:3px; font-family:inherit; font-size:9.5px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:all .15s; }
+.mini-btn:hover { border-color:var(--cyan); color:var(--cyan); }
+.empty { color:var(--txt-2); font-size:11px; text-align:center; padding:24px 0; font-style:italic; }
+
+.tabs { display:flex; border-bottom:1px solid var(--line); }
+.tab { flex:1; padding:11px; background:var(--bg-2); border:none; color:var(--txt-2); font-family:inherit; font-size:9.5px; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:all .15s; border-bottom:2px solid transparent; }
+.tab:hover { color:var(--txt-0); }
+.tab.active { color:var(--amber); border-bottom-color:var(--amber); background:var(--bg-1); }
+.tab-panel { display:none; padding:16px 17px; }
+.tab-panel.active { display:block; animation:fadeIn .3s; }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.form-row { margin-bottom:12px; }
+.form-row label { display:block; font-size:9.5px; letter-spacing:1px; text-transform:uppercase; color:var(--txt-2); margin-bottom:6px; }
+.form-row input, .form-row select { width:100%; padding:10px 12px; background:var(--bg-0); border:1px solid var(--line); border-radius:var(--radius); color:var(--txt-0); font-family:inherit; font-size:12px; transition:border-color .2s, box-shadow .2s; }
+.form-row input:focus, .form-row select:focus { outline:none; border-color:var(--amber); box-shadow:0 0 0 3px var(--amber-dim); }
+.form-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+.check-row { display:flex; gap:16px; margin-bottom:12px; }
+.check-row label { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--txt-1); text-transform:none; letter-spacing:0; cursor:pointer; }
+.check-row input { width:auto; }
+.form-msg { font-size:11px; margin-top:10px; min-height:16px; }
+.form-msg.ok { color:var(--green); }
+.form-msg.err { color:var(--red); }
+
+.chart-block { margin-bottom:22px; }
+.chart-block:last-child { margin-bottom:0; }
+.chart-label { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--txt-2); margin-bottom:12px; }
+.chart-canvas-wrap { position:relative; }
+canvas { display:block; width:100%; }
+.legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; }
+.legend-item { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--txt-1); }
+.legend-swatch { width:10px; height:10px; border-radius:2px; }
+
+.log-row { display:flex; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:11px; align-items:baseline; animation:rowIn .3s backwards; }
+.log-row:last-child { border-bottom:none; }
+.log-time { color:var(--txt-2); font-size:10px; white-space:nowrap; }
+.log-icon { font-size:11px; }
+.log-msg { color:var(--txt-1); }
+.log-msg b { color:var(--txt-0); }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="brand-mark"><div class="dot"></div><div class="brand-name">Hotel<span>OS</span></div></div>
+    <div class="login-sub">Operations Command Center</div>
+    <div class="field"><label>Operator ID</label><input type="text" id="user" value="admin" autocomplete="username" spellcheck="false"></div>
+    <div class="field"><label>Access Key</label><input type="password" id="pass" value="hotelos2024" autocomplete="current-password"></div>
+    <button class="btn" id="loginBtn" onclick="doLogin()">Authenticate →</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-hint">
+      <b style="color:var(--txt-1)">Test credentials</b><br>
+      Admin · <code>admin</code> / <code>hotelos2024</code><br>
+      Staff · <code>staff</code> / <code>hotel123</code>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="hdr-left">
+      <div class="brand-mark"><div class="dot"></div><div class="brand-name">Hotel<span>OS</span></div></div>
+      <div class="hdr-clock" id="clock">--:--:--</div>
+    </div>
+    <div class="hdr-right">
+      <div class="ws-pill ws-off" id="wsPill"><span class="led"></span><span id="wsTxt">Connecting</span></div>
+      <div class="user-chip">Operator <b id="opName">—</b></div>
+      <button class="logout-btn" onclick="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <div class="kpi-strip">
+    <div class="kpi k-occ"><div class="k-label">Occupied</div><div class="k-value" id="kpiOcc">0</div><div class="k-sub" id="kpiOccSub">of 10 rooms</div></div>
+    <div class="kpi k-dirty"><div class="k-label">Cleaning Queue</div><div class="k-value" id="kpiDirty">0</div><div class="k-sub">awaiting housekeeping</div></div>
+    <div class="kpi k-orders"><div class="k-label">Active Orders</div><div class="k-value" id="kpiOrders">0</div><div class="k-sub">room service</div></div>
+    <div class="kpi k-maint"><div class="k-label">Open Issues</div><div class="k-value" id="kpiMaint">0</div><div class="k-sub" id="kpiMaintSub">0 critical</div></div>
+    <div class="kpi k-rev"><div class="k-label">Occupancy Rate</div><div class="k-value" id="kpiRate">0%</div><div class="k-sub">live</div></div>
+  </div>
+
+  <main>
+    <section class="panel p-rooms">
+      <div class="p-head"><div class="p-title"><span class="tdot" style="background:var(--violet)"></span>Room Floor Map</div><div class="p-count" id="roomsCount">10 rooms</div></div>
+      <div class="p-body"><div class="rooms-grid" id="roomsGrid"><div class="empty">Loading rooms…</div></div></div>
+    </section>
+
+    <section class="panel p-actions">
+      <div class="p-head"><div class="p-title"><span class="tdot" style="background:var(--amber)"></span>Operations Console</div></div>
+      <div class="tabs">
+        <button class="tab active" data-tab="checkin" onclick="switchTab('checkin')">Check-In</button>
+        <button class="tab" data-tab="checkout" onclick="switchTab('checkout')">Check-Out</button>
+        <button class="tab" data-tab="order" onclick="switchTab('order')">Room Svc</button>
+        <button class="tab" data-tab="issue" onclick="switchTab('issue')">Repair</button>
+      </div>
+      <div class="tab-panel active" id="tab-checkin">
+        <div class="form-row"><label>Guest Name</label><input id="ci-name" placeholder="e.g. Alice Smith"></div>
+        <div class="form-grid2">
+          <div class="form-row"><label>Room Type</label><select id="ci-type"><option>SINGLE</option><option selected>DOUBLE</option><option>SUITE</option><option>ACCESSIBLE</option></select></div>
+          <div class="form-row"><label>Preferred Floor</label><select id="ci-floor"><option value="">Any</option><option value="1">Floor 1</option><option value="2">Floor 2</option></select></div>
+        </div>
+        <div class="form-grid2">
+          <div class="form-row"><label>Check-In Date</label><input type="date" id="ci-date"></div>
+          <div class="form-row"><label>Discount %</label><input type="number" id="ci-disc" value="0" min="0" max="100"></div>
+        </div>
+        <div class="check-row"><label><input type="checkbox" id="ci-elev"> Near elevator</label><label><input type="checkbox" id="ci-stairs"> Near stairs</label></div>
+        <button class="btn" onclick="submitCheckIn()">Assign Room & Check In</button>
+        <div class="form-msg" id="ci-msg"></div>
+      </div>
+      <div class="tab-panel" id="tab-checkout">
+        <div class="form-row"><label>Room Number</label><input id="co-room" placeholder="e.g. 204" maxlength="3"></div>
+        <button class="btn" onclick="submitCheckOut()">Check Out & Generate Bill</button>
+        <div class="form-msg" id="co-msg"></div>
+        <div id="co-bill"></div>
+      </div>
+      <div class="tab-panel" id="tab-order">
+        <div class="form-row"><label>Room Number</label><input id="or-room" placeholder="e.g. 301" maxlength="3"></div>
+        <div class="form-row"><label>Items (comma-separated)</label><input id="or-items" placeholder="2x Coffee, Club Sandwich"></div>
+        <div class="form-row"><label>Total Amount ($)</label><input type="number" id="or-total" placeholder="18.50" step="0.01" min="0"></div>
+        <button class="btn" onclick="submitOrder()">Place Order</button>
+        <div class="form-msg" id="or-msg"></div>
+      </div>
+      <div class="tab-panel" id="tab-issue">
+        <div class="form-row"><label>Room Number</label><input id="is-room" placeholder="e.g. 115" maxlength="3"></div>
+        <div class="form-row"><label>Description</label><input id="is-desc" placeholder="Broken shower, flooding bathroom"></div>
+        <div class="form-row"><label>Urgency</label><select id="is-urg"><option>CRITICAL</option><option>HIGH</option><option selected>NORMAL</option><option>LOW</option></select></div>
+        <button class="btn" onclick="submitIssue()">Log Maintenance Issue</button>
+        <div class="form-msg" id="is-msg"></div>
+      </div>
+    </section>
+
+    <section class="panel p-orders">
+      <div class="p-head"><div class="p-title"><span class="tdot" style="background:var(--cyan)"></span>Room Service Pipeline</div><div class="p-count" id="ordersCount">0 active</div></div>
+      <div class="p-body" id="ordersBody"><div class="empty">No active orders</div></div>
+    </section>
+
+    <section class="panel p-maint">
+      <div class="p-head"><div class="p-title"><span class="tdot" style="background:var(--red)"></span>Maintenance Queue</div><div class="p-count" id="maintCount">0 open</div></div>
+      <div class="p-body" id="maintBody"><div class="empty">No open issues</div></div>
+    </section>
+
+    <section class="panel p-charts">
+      <div class="p-head"><div class="p-title"><span class="tdot" style="background:var(--amber)"></span>Live Analytics</div></div>
+      <div class="p-body">
+        <div class="chart-block">
+          <div class="chart-label">Room Status Distribution</div>
+          <div class="chart-canvas-wrap"><canvas id="donut" height="320"></canvas></div>
+          <div class="legend" id="donutLegend"></div>
+        </div>
+        <div class="chart-block">
+          <div class="chart-label">Event Activity · last 60s</div>
+          <div class="chart-canvas-wrap"><canvas id="spark" height="120"></canvas></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel p-log">
+      <div class="p-head"><div class="p-title"><span class="tdot" style="background:var(--cyan)"></span>Live Event Stream</div><div class="p-count" id="logCount">0 events</div></div>
+      <div class="p-body" id="logBody"><div class="empty">Awaiting events…</div></div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<script>
+const API = {
+  reception:'http://localhost:8081', housekeeping:'http://localhost:8082',
+  roomservice:'http://localhost:8083', maintenance:'http://localhost:8084',
+};
+let auth=null;
+const rooms={}, hkStatus={}, orders={}, issues={}, log=[];
+const activityBuckets=new Array(60).fill(0);
+let stompClients=[];
+
+function authHeader(){ return 'Basic ' + btoa(auth.user + ':' + auth.pass); }
+
+async function doLogin(){
+  const u=document.getElementById('user').value.trim();
+  const p=document.getElementById('pass').value;
+  const btn=document.getElementById('loginBtn'), err=document.getElementById('loginErr');
+  err.textContent=''; btn.disabled=true; btn.textContent='Authenticating…';
+  try{
+    const res=await fetch(API.reception+'/api/reception/rooms',{headers:{Authorization:'Basic '+btoa(u+':'+p)}});
+    if(res.ok){
+      auth={user:u,pass:p};
+      document.getElementById('login').style.display='none';
+      document.getElementById('app').style.display='flex';
+      document.getElementById('opName').textContent=u;
+      boot();
+    } else if(res.status===401){ err.textContent='✗ Invalid credentials'; }
+    else { err.textContent='✗ Server error ('+res.status+')'; }
+  }catch(e){ err.textContent='✗ Cannot reach Reception service on :8081'; }
+  finally{ btn.disabled=false; btn.textContent='Authenticate →'; }
+}
+function logout(){ location.reload(); }
+document.getElementById('pass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+function boot(){
+  document.getElementById('ci-date').value=new Date().toISOString().slice(0,10);
+  startClock(); loadRooms(); loadHousekeeping(); loadOrders(); loadIssues();
+  connectAllSockets(); drawCharts(); setInterval(shiftActivity,1000);
+}
+function startClock(){
+  const tick=()=>document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-GB');
+  tick(); setInterval(tick,1000);
+}
+
+async function loadRooms(){
+  try{ const r=await fetch(API.reception+'/api/reception/rooms',{headers:{Authorization:authHeader()}});
+    const d=await r.json(); d.forEach(rm=>rooms[rm.roomNumber]=rm); renderRooms(); renderKPIs(); drawCharts();
+  }catch(e){ console.error('rooms load failed',e); }
+}
+async function loadHousekeeping(){
+  try{ const r=await fetch(API.housekeeping+'/api/housekeeping/rooms');
+    const d=await r.json(); d.forEach(hk=>hkStatus[hk.roomNumber]=hk.status); renderRooms(); renderKPIs(); drawCharts();
+  }catch(e){}
+}
+async function loadOrders(){
+  try{ const r=await fetch(API.roomservice+'/api/room-service/orders/active');
+    const d=await r.json(); d.forEach(o=>orders[o.id]=o); renderOrders(); renderKPIs();
+  }catch(e){}
+}
+async function loadIssues(){
+  try{ const r=await fetch(API.maintenance+'/api/maintenance/issues');
+    const d=await r.json(); d.forEach(i=>issues[i.id]=i); renderIssues(); renderKPIs();
+  }catch(e){}
+}
+
+function connectAllSockets(){
+  connectSocket(API.housekeeping,'/topic/rooms',onRoomEvent);
+  connectSocket(API.roomservice,'/topic/orders',onOrderEvent);
+  connectSocket(API.maintenance,'/topic/maintenance',onMaintEvent);
+}
+function connectSocket(base,topic,handler){
+  const sock=new SockJS(base+'/ws');
+  const client=Stomp.over(sock); client.debug=null;
+  client.connect({},()=>{ setWsState(true); client.subscribe(topic,m=>handler(JSON.parse(m.body))); },
+    ()=>{ setWsState(false); setTimeout(()=>connectSocket(base,topic,handler),4000); });
+  stompClients.push(client);
+}
+function setWsState(on){
+  const pill=document.getElementById('wsPill'), txt=document.getElementById('wsTxt');
+  if(on){ pill.className='ws-pill ws-on'; txt.textContent='Live'; }
+  else { pill.className='ws-pill ws-off'; txt.textContent='Reconnecting'; }
+}
+
+function onRoomEvent(ev){
+  hkStatus[ev.roomNumber]=ev.newStatus;
+  if(rooms[ev.roomNumber]) rooms[ev.roomNumber].status=ev.newStatus;
+  renderRooms(true,ev.roomNumber); renderKPIs(); drawCharts();
+  pushLog('🛏',`Room <b>${ev.roomNumber}</b> · ${ev.oldStatus} → ${ev.newStatus}`+(ev.assignedHousekeeper?` · ${ev.assignedHousekeeper}`:'')); bumpActivity();
+}
+function onOrderEvent(ev){
+  orders[ev.orderId]={...(orders[ev.orderId]||{}),...ev,id:ev.orderId,status:ev.newStatus};
+  if(ev.newStatus==='DELIVERED') delete orders[ev.orderId];
+  renderOrders(); renderKPIs();
+  pushLog('🍽',`Order <b>#${ev.orderId}</b> (Room ${ev.roomNumber}) · ${ev.newStatus}`); bumpActivity();
+}
+function onMaintEvent(ev){
+  issues[ev.issueId]={...(issues[ev.issueId]||{}),...ev,id:ev.issueId};
+  renderIssues(); renderKPIs();
+  pushLog('🔧',`Issue <b>#${ev.issueId}</b> (Room ${ev.roomNumber}) · ${ev.urgency} · ${ev.status}`); bumpActivity();
+}
+
+function effectiveStatus(rm){
+  const hk=hkStatus[rm.roomNumber];
+  if(hk==='DIRTY'||hk==='BEING_CLEANED') return hk;
+  if(hk==='CLEAN'&&rm.status!=='OCCUPIED') return 'CLEAN';
+  return rm.status;
+}
+function renderRooms(flash,flashRoom){
+  const grid=document.getElementById('roomsGrid');
+  const list=Object.values(rooms).sort((a,b)=>a.roomNumber.localeCompare(b.roomNumber));
+  if(!list.length){ grid.innerHTML='<div class="empty">No rooms loaded</div>'; return; }
+  grid.innerHTML=list.map(rm=>{
+    const st=effectiveStatus(rm);
+    const fl=(flash&&rm.roomNumber===flashRoom)?' flash-update':'';
+    return `<div class="room st-${st}${fl}"><div><div class="r-num">${rm.roomNumber}</div><div class="r-type">${(rm.roomType||'').toLowerCase()}</div></div><div><div class="r-state">${stateLabel(st)}</div>${rm.currentGuestName?`<div class="r-guest">${rm.currentGuestName}</div>`:''}</div></div>`;
+  }).join('');
+  document.getElementById('roomsCount').textContent=list.length+' rooms';
+}
+function stateLabel(s){ return {CLEAN:'✓ Clean',DIRTY:'✗ Dirty',BEING_CLEANED:'⟳ Cleaning',OCCUPIED:'● Occupied',MAINTENANCE:'⚠ Service'}[s]||s; }
+
+function renderOrders(){
+  const body=document.getElementById('ordersBody');
+  const list=Object.values(orders).sort((a,b)=>(a.id||0)-(b.id||0));
+  document.getElementById('ordersCount').textContent=list.length+' active';
+  if(!list.length){ body.innerHTML='<div class="empty">No active orders</div>'; return; }
+  body.innerHTML=list.map(o=>{
+    const st=o.status||o.newStatus;
+    const next={RECEIVED:'Start Prep',PREPARING:'Out for Delivery',OUT_FOR_DELIVERY:'Mark Delivered'}[st];
+    return `<div class="row"><div class="row-top"><span class="row-room">Room ${o.roomNumber} · #${o.id}</span><span class="tag tg-${st}">${(st||'').replace(/_/g,' ')}</span></div><div class="row-detail">${(o.items||[]).join(', ')} — <b style="color:var(--amber)">$${fmt(o.totalAmount)}</b></div>${next?`<div style="margin-top:8px"><button class="mini-btn" onclick="advanceOrder(${o.id})">${next} →</button></div>`:''}</div>`;
+  }).join('');
+}
+
+function renderIssues(){
+  const body=document.getElementById('maintBody');
+  const ord={CRITICAL:0,HIGH:1,NORMAL:2,LOW:3};
+  const list=Object.values(issues).filter(i=>i.status!=='RESOLVED').sort((a,b)=>(ord[a.urgency]??9)-(ord[b.urgency]??9));
+  document.getElementById('maintCount').textContent=list.length+' open';
+  if(!list.length){ body.innerHTML='<div class="empty">No open issues</div>'; return; }
+  body.innerHTML=list.map(i=>`<div class="row"><div class="row-top"><span class="row-room">Room ${i.roomNumber} · #${i.id}</span><span style="display:flex;gap:5px"><span class="tag tg-${i.urgency}">${i.urgency}</span><span class="tag tg-${i.status}">${i.status}</span></span></div><div class="row-detail">${i.description||''}</div><div class="row-top" style="margin-top:8px;margin-bottom:0"><span class="row-meta">${i.assignedTechnician?'👷 '+i.assignedTechnician:'unassigned'}</span><button class="mini-btn" onclick="resolveIssue(${i.id})">Resolve ✓</button></div></div>`).join('');
+}
+
+function renderKPIs(){
+  const list=Object.values(rooms); const total=list.length||10;
+  let occ=0,dirty=0;
+  list.forEach(rm=>{ const st=effectiveStatus(rm); if(st==='OCCUPIED')occ++; if(st==='DIRTY'||st==='BEING_CLEANED')dirty++; });
+  const activeOrders=Object.keys(orders).length;
+  const openIssues=Object.values(issues).filter(i=>i.status!=='RESOLVED');
+  const critical=openIssues.filter(i=>i.urgency==='CRITICAL').length;
+  const rate=total?Math.round(occ/total*100):0;
+  setKpi('kpiOcc',occ); document.getElementById('kpiOccSub').textContent=`of ${total} rooms`;
+  setKpi('kpiDirty',dirty); setKpi('kpiOrders',activeOrders); setKpi('kpiMaint',openIssues.length);
+  document.getElementById('kpiMaintSub').textContent=`${critical} critical`;
+  setKpi('kpiRate',rate+'%');
+}
+function setKpi(id,val){
+  const el=document.getElementById(id);
+  if(el.textContent!==String(val)){ el.textContent=val; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+}
+
+function pushLog(icon,html){
+  log.unshift({t:new Date().toLocaleTimeString('en-GB'),icon,html});
+  if(log.length>60) log.pop();
+  document.getElementById('logBody').innerHTML=log.map(e=>`<div class="log-row"><span class="log-time">${e.t}</span><span class="log-icon">${e.icon}</span><span class="log-msg">${e.html}</span></div>`).join('');
+  document.getElementById('logCount').textContent=log.length+' events';
+}
+function bumpActivity(){ activityBuckets[activityBuckets.length-1]++; }
+function shiftActivity(){ activityBuckets.push(0); if(activityBuckets.length>60) activityBuckets.shift(); drawSpark(); }
+
+async function submitCheckIn(){
+  const msg=document.getElementById('ci-msg');
+  const floor=document.getElementById('ci-floor').value;
+  const body={ guestName:document.getElementById('ci-name').value.trim(),
+    requestedRoomType:document.getElementById('ci-type').value,
+    preferredFloor:floor?parseInt(floor):null,
+    preferNearElevator:document.getElementById('ci-elev').checked,
+    preferNearStairs:document.getElementById('ci-stairs').checked,
+    checkInDate:document.getElementById('ci-date').value,
+    discountPercent:parseInt(document.getElementById('ci-disc').value)||0 };
+  await postJSON(API.reception+'/api/reception/checkin',body,msg,true,(data)=>{
+    if(data.assignedRoom){ msg.className='form-msg ok';
+      msg.textContent=`✓ ${data.guestName} → Room ${data.assignedRoom} (Floor ${data.floor}, $${fmt(data.nightlyRate)}/night)`;
+      document.getElementById('ci-name').value=''; loadRooms();
+    } else { msg.className='form-msg err'; msg.textContent='✗ '+(data.message||'No room available'); }
+  });
+}
+async function submitCheckOut(){
+  const msg=document.getElementById('co-msg'), billBox=document.getElementById('co-bill');
+  const room=document.getElementById('co-room').value.trim(); billBox.innerHTML='';
+  if(!/^\d{3}$/.test(room)){ msg.className='form-msg err'; msg.textContent='✗ Room must be 3 digits'; return; }
+  await postJSON(API.reception+`/api/reception/checkout/${room}`,null,msg,true,(data)=>{
+    msg.className='form-msg ok'; msg.textContent='✓ Checkout complete';
+    billBox.innerHTML=`<div class="row" style="margin-top:12px"><div class="row-top"><span class="row-room">Bill · ${data.guestName}</span><span class="tag tg-DELIVERED">PAID</span></div><div class="row-detail" style="line-height:1.9">${data.numberOfNights} night(s) × $${fmt(data.nightlyRate)} = $${fmt(data.roomChargesSubtotal)}<br>Room service: $${fmt(data.roomServiceCharges)}<br>Additional: $${fmt(data.additionalCharges)}<br>Discount: −$${fmt(data.discountAmount)}<br><b style="color:var(--amber);font-size:14px">Total: $${fmt(data.totalBill)}</b></div></div>`;
+    document.getElementById('co-room').value=''; loadRooms(); loadHousekeeping();
+  });
+}
+async function submitOrder(){
+  const msg=document.getElementById('or-msg');
+  const items=document.getElementById('or-items').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const body={ roomNumber:document.getElementById('or-room').value.trim(), items, totalAmount:parseFloat(document.getElementById('or-total').value) };
+  await postJSON(API.roomservice+'/api/room-service/orders',body,msg,false,(data)=>{
+    msg.className='form-msg ok'; msg.textContent=`✓ Order #${data.id} placed for Room ${data.roomNumber}`;
+    document.getElementById('or-items').value=''; document.getElementById('or-total').value='';
+    orders[data.id]=data; renderOrders(); renderKPIs();
+  });
+}
+async function submitIssue(){
+  const msg=document.getElementById('is-msg');
+  const body={ roomNumber:document.getElementById('is-room').value.trim(), description:document.getElementById('is-desc').value.trim(), urgency:document.getElementById('is-urg').value };
+  await postJSON(API.maintenance+'/api/maintenance/issues',body,msg,false,(data)=>{
+    msg.className='form-msg ok'; msg.textContent=`✓ Issue #${data.id} logged · ${data.assignedTechnician||'assigning'}`;
+    document.getElementById('is-desc').value=''; issues[data.id]=data; renderIssues(); renderKPIs();
+  });
+}
+async function advanceOrder(id){
+  try{ const r=await fetch(API.roomservice+`/api/room-service/orders/${id}/advance`,{method:'POST'});
+    const d=await r.json(); orders[id]={...orders[id],...d}; if(d.status==='DELIVERED') delete orders[id]; renderOrders(); renderKPIs();
+  }catch(e){ console.error(e); }
+}
+async function resolveIssue(id){
+  try{ const r=await fetch(API.maintenance+`/api/maintenance/issues/${id}/resolve`,{method:'POST'});
+    const d=await r.json(); issues[id]={...issues[id],...d}; renderIssues(); renderKPIs();
+  }catch(e){ console.error(e); }
+}
+async function postJSON(url,body,msgEl,authed,onOk){
+  msgEl.className='form-msg'; msgEl.textContent='Working…';
+  try{
+    const headers={'Content-Type':'application/json'};
+    if(authed) headers['Authorization']=authHeader();
+    const res=await fetch(url,{method:'POST',headers,body:body!==null?JSON.stringify(body):undefined});
+    const data=await res.json().catch(()=>({}));
+    if(res.ok){ onOk(data); }
+    else { msgEl.className='form-msg err'; msgEl.textContent='✗ '+(data.error||Object.values(data)[0]||('HTTP '+res.status)); }
+  }catch(e){ msgEl.className='form-msg err'; msgEl.textContent='✗ Service unreachable'; }
+}
+
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+
+function drawCharts(){ drawDonut(); drawSpark(); }
+function drawDonut(){
+  const c=document.getElementById('donut'); if(!c) return;
+  const dpr=window.devicePixelRatio||1, W=c.clientWidth, H=320;
+  c.width=W*dpr; c.height=H*dpr; const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const counts={CLEAN:0,DIRTY:0,BEING_CLEANED:0,OCCUPIED:0,MAINTENANCE:0};
+  Object.values(rooms).forEach(rm=>{ const s=effectiveStatus(rm); if(counts[s]!==undefined) counts[s]++; });
+  const colors={CLEAN:'#5fd068',DIRTY:'#ff7849',BEING_CLEANED:'#f5a623',OCCUPIED:'#9d8cff',MAINTENANCE:'#ff4d5e'};
+  const labels={CLEAN:'Clean',DIRTY:'Dirty',BEING_CLEANED:'Cleaning',OCCUPIED:'Occupied',MAINTENANCE:'Service'};
+  const total=Object.values(counts).reduce((a,b)=>a+b,0)||1;
+  const cx=W/2, cy=H/2, rOut=Math.min(W,H)/2-14, rIn=rOut*0.62; let start=-Math.PI/2;
+  Object.entries(counts).forEach(([k,v])=>{
+    if(v===0) return; const ang=v/total*Math.PI*2;
+    ctx.beginPath(); ctx.arc(cx,cy,rOut,start,start+ang); ctx.arc(cx,cy,rIn,start+ang,start,true); ctx.closePath();
+    ctx.fillStyle=colors[k]; ctx.fill(); ctx.strokeStyle='#111114'; ctx.lineWidth=2; ctx.stroke(); start+=ang;
+  });
+  ctx.fillStyle='#f4f1ea'; ctx.textAlign='center'; ctx.font='900 36px Fraunces, serif'; ctx.fillText(total,cx,cy+4);
+  ctx.fillStyle='#6b6860'; ctx.font='600 10px JetBrains Mono, monospace'; ctx.fillText('ROOMS',cx,cy+22);
+  document.getElementById('donutLegend').innerHTML=Object.entries(counts).filter(([k,v])=>v>0).map(([k,v])=>`<div class="legend-item"><span class="legend-swatch" style="background:${colors[k]}"></span>${labels[k]} · ${v}</div>`).join('');
+}
+function drawSpark(){
+  const c=document.getElementById('spark'); if(!c) return;
+  const dpr=window.devicePixelRatio||1, W=c.clientWidth, H=120;
+  c.width=W*dpr; c.height=H*dpr; const ctx=c.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+  const data=activityBuckets, max=Math.max(3,...data), pad=6, bw=(W-pad*2)/data.length;
+  ctx.strokeStyle='#2a2a33'; ctx.lineWidth=1;
+  [0.5,1].forEach(f=>{ const y=H-pad-(H-pad*2)*f; ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke(); });
+  data.forEach((v,i)=>{
+    const h=(v/max)*(H-pad*2), x=pad+i*bw, y=H-pad-h, recent=i>=data.length-3;
+    ctx.fillStyle=recent?'#f5a623':'#39d8c8'; ctx.globalAlpha=recent?1:0.55; ctx.fillRect(x,y,Math.max(1,bw-1.5),h);
+  });
+  ctx.globalAlpha=1;
+}
+window.addEventListener('resize',()=>{ if(auth) drawCharts(); });
+function fmt(n){ return (Number(n)||0).toFixed(2); }
+</script>
+</body>
+</html>

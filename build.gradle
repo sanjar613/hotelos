@@ -1,0 +1,68 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.5' apply false
+}
+
+// All services (everything except dashboard which has its own config below)
+configure(subprojects.findAll { it.name != 'dashboard' }) {
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+
+    group = 'com.hotelos'
+    version = '1.0.0'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories { mavenCentral() }
+
+    dependencies {
+        // Spring Boot BOM via platform() — native Gradle, no extra plugin needed
+        implementation platform('org.springframework.boot:spring-boot-dependencies:3.2.5')
+        testImplementation platform('org.springframework.boot:spring-boot-dependencies:3.2.5')
+
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+        implementation 'org.springframework.boot:spring-boot-starter-validation'
+        implementation 'org.springframework.boot:spring-boot-starter-actuator'
+        implementation 'org.springframework.boot:spring-boot-starter-websocket'
+        implementation 'org.springframework.boot:spring-boot-starter-amqp'
+        runtimeOnly 'org.postgresql:postgresql'
+        compileOnly 'org.projectlombok:lombok:1.18.32'
+        annotationProcessor 'org.projectlombok:lombok:1.18.32'
+
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testImplementation 'org.springframework.amqp:spring-rabbit-test'
+        testImplementation 'com.h2database:h2'
+        testCompileOnly 'org.projectlombok:lombok:1.18.32'
+        testAnnotationProcessor 'org.projectlombok:lombok:1.18.32'
+    }
+
+    test { useJUnitPlatform() }
+}
+
+// Dashboard — web + websocket only, no DB / no broker
+project(':dashboard') {
+    apply plugin: 'java'
+    apply plugin: 'org.springframework.boot'
+
+    group = 'com.hotelos'
+    version = '1.0.0'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    repositories { mavenCentral() }
+
+    dependencies {
+        implementation platform('org.springframework.boot:spring-boot-dependencies:3.2.5')
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    }
+}

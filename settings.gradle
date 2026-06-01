@@ -1,0 +1,6 @@
+rootProject.name = 'hotelos'
+include 'reception-service'
+include 'housekeeping-service'
+include 'room-service'
+include 'maintenance-service'
+include 'dashboard'
